@@ -1,0 +1,30 @@
+name: Build Deauther Binaries
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install ESP8266 Core
+        run: |
+          arduino-cli core update-index --additional-urls https://esp8266.com
+          arduino-cli core install esp8266:esp8266 --additional-urls https://esp8266.com
+
+      - name: Compile Wemos D1 Mini Binary
+        run: |
+          arduino-cli compile --fqbn esp8266:esp8266:d1_mini --output-dir ./build ./esp8266_deauther/esp8266_deauther.ino
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wemos_D1_mini_Custom
+          path: ./build/*.bin
